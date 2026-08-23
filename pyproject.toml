@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "TP1 - 72.75 Aprendizaje Automatico: linear and polynomial regression on insurance.csv"
 requires-python = ">=3.12"
 dependencies = [
+    "matplotlib>=3.11.1",
     "numpy>=2.1",
     "pandas>=2.2",
     "scikit-learn>=1.5",
+    "seaborn>=0.13.2",
 ]
