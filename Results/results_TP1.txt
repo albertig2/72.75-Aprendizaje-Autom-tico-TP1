@@ -1,0 +1,354 @@
+================================================================================
+TP1 - REGRESSION AND INTRODUCTION TO MODEL EVALUATION
+72.75 Aprendizaje Automatico - ITBA - 2026 Q2
+
+Dataset: Insurance Charges (insurance.csv)   Target: charges (continuous)
+
+Reproduce:  python data_prep.py
+            python linear_regression.py
+            python polynomial_regression.py
+            python final_evaluation.py
+================================================================================
+
+HEADLINE RESULT
+  Selected model : Lasso, polynomial degree 2, lambda = 100
+  Cross-validated RMSE : 4905.32
+  Final test RMSE      : 4630.51   (95% bootstrap interval 3820 - 5403)
+  R2 on test           : 0.883
+
+
+================================================================================
+0. CHOICE OF DATASET
+================================================================================
+
+Insurance Charges was chosen because it forces real decisions in every
+section: three categorical variables (1.1), a large well-explained group of
+extreme values (1.3), and a strong interaction between smoking and the
+numeric variables that the polynomial models can exploit (section 3).
+
+The rows are independent individuals with no time ordering, so a random
+train/test split is valid. Bike Sharing is a time series and would require a
+chronological split.
+
+Raw data: 1338 rows x 7 columns.
+  age (18-64), sex, bmi (15.96-53.13), children (0-5), smoker, region,
+  charges (1121.87 - 63770.43, the target)
+
+
+================================================================================
+1. DATA CLEANING
+================================================================================
+
+1.1 CATEGORICAL VARIABLES
+--------------------------------------------------------------------------------
+Found: sex (2 levels), smoker (2), region (4). None ordinal.
+
+  sex, smoker -> one 0/1 column each (sex_male, smoker_yes).
+                 With two levels, one-hot would produce two perfectly
+                 complementary columns carrying the same information.
+
+  region      -> one-hot, first level dropped (northeast = reference).
+                 One-hot because the regions have no natural order; integer
+                 codes 0/1/2/3 would impose a false ordering. The first level
+                 is dropped because all four dummies plus an intercept sum to
+                 a constant, making the design matrix singular.
+
+  children    -> kept as a numeric count, NOT one-hot. It is an ordered
+                 count, so one column costs one coefficient instead of five.
+                 Trade-off accepted: the effect per extra child is forced to
+                 be linear.
+
+Result: 6 raw predictors -> 8 features.
+
+1.2 MISSING VALUES
+--------------------------------------------------------------------------------
+Found: none, in any column. No imputation required.
+
+Also found: one exactly duplicated pair (rows 195 and 581).
+Dropped, because an identical row landing in both a training and a
+validation fold leaks information across the split. Cost: 1 row of 1338.
+
+Result: 1337 rows.
+
+1.3 OUTLIERS
+--------------------------------------------------------------------------------
+Criterion: Tukey's fences (1.5 * IQR). Chosen because it is quantile-based
+and therefore not distorted by the very outliers it is meant to detect,
+unlike a mean +/- 3*sd rule.
+
+  variable      lower       upper     n     pct
+  age           -9.00       87.00     0     0.0
+  bmi           13.70       47.29     9     0.7
+  children      -3.00        5.00     0     0.0
+  charges   -13109.15    34489.35   139    10.4
+
+Decision: KEEP all of them.
+
+  charges: of the 139 flagged rows, 136 (97.8%) are smokers - while smokers
+  are only 20.5% of the dataset. These are not errors but a real
+  subpopulation with systematically higher costs, exactly what the model
+  must learn. Removing them would delete the signal and produce an RMSE that
+  looks better while describing a population that no longer exists.
+
+  bmi: the 9 flagged values lie between 47.5 and 53.1, medically plausible
+  for adults. No impossible values, zeros or negatives.
+
+1.4 FEATURES AND SCALING
+--------------------------------------------------------------------------------
+All 6 predictors kept: none is an identifier, none leaks the target, none is
+redundant. With 6 predictors and 1337 rows there is no dimensionality
+problem. Feature selection is handled instead by L1 in section 3.3.
+
+Scaling: z-score standardisation of age, bmi and children only. The 0/1
+dummies are passed through - scaling them would destroy their interpretation
+with no numerical benefit.
+
+Why scale at all: OLS does not need it, but degree-3 terms such as bmi**3
+reach the order of 10^5 and condition the matrix badly, and the L1 penalty
+is scale-dependent - on unscaled features lambda would penalise coefficients
+differently purely because of their units.
+
+CRITICAL: the scaler is fitted INSIDE each CV fold, on that fold's training
+portion only. Fitting it on all data first would let the validation rows
+influence the transformation - data leakage that makes validation error
+optimistic. Enforced in code by wrapping scaler and model in one sklearn
+Pipeline.
+
+
+================================================================================
+2. LINEAR REGRESSION
+================================================================================
+
+2.1 TRAIN / TEST SPLIT
+--------------------------------------------------------------------------------
+Random split, 80/20, random_state = 42.  train 1069 rows, test 268 rows.
+
+  - Random, not chronological: independent rows, no time ordering.
+  - No stratification: the target is continuous.
+  - Fixed seed: every reported number is exactly reproducible.
+
+WHY A SEPARATE TEST SET (theory point 1.1 of the assignment):
+  The training set fits parameters. The validation folds CHOOSE between
+  models - degree, lambda. Because those choices are made by looking at
+  validation error, that error is no longer unbiased: it has been optimised
+  against. The test set is never consulted during selection, so it gives the
+  only honest estimate of performance on new data.
+
+2.2 CROSS-VALIDATION
+--------------------------------------------------------------------------------
+5-fold CV, shuffled, seed 42, on the TRAINING SET ONLY.
+Each fold: ~855 rows to fit, ~214 to validate.
+
+k = 5 balances cost against reliability - 214 validation rows per fold is
+enough for a stable estimate. Verified stable at k = 10.
+The pipeline is rebuilt from scratch in every fold.
+
+2.3 RESULTS
+--------------------------------------------------------------------------------
+  Baseline (always predict the training mean):  RMSE 11701.05
+
+  fold   rmse_train   rmse_val
+     1      6139.56    5846.90
+     2      6104.44    6003.92
+     3      6073.79    6130.97
+     4      6051.68    6239.26
+     5      6010.12    6397.21
+
+  mean train 6075.92 (sd  49.46)
+  mean val   6123.65 (sd 211.65)
+  gap          47.73
+
+Interpretation:
+  - The model roughly halves the baseline error, so the features do carry
+    predictive information.
+  - The train/val gap is under 1% of the error. There is essentially NO
+    overfitting: 8 parameters on 1069 rows cannot memorise the data.
+  - The problem is therefore HIGH BIAS, not high variance. That is the
+    motivation for section 3 - the goal there is to reduce bias.
+  - Validation RMSE varies more across folds (sd 212) than training RMSE
+    (sd 49), as expected: each estimate uses only 214 rows and the target
+    has a heavy right tail.
+
+Coefficients (full training set, interpretation only; numeric features are
+per standard deviation, dummies per 0 -> 1):
+
+  smoker_yes 23077.76 | age 3472.98 | bmi 1927.83 | region_southeast -838.92
+  region_southwest -659.14 | children 636.50 | region_northwest -391.76
+  sex_male -101.54 | intercept 8947.95
+
+  Smoking dominates everything. sex_male is near zero and is a natural
+  candidate for elimination by L1.
+
+
+================================================================================
+3. POLYNOMIAL REGRESSION
+================================================================================
+
+3.1 / 3.2 TRANSFORMATION AND TRAINING
+--------------------------------------------------------------------------------
+Pipeline order: standardise -> PolynomialFeatures -> standardise again -> fit.
+
+  1. Scale first, or bmi**3 terms reach 10^5 and condition the matrix badly.
+  2. include_bias=False (the model fits its own intercept);
+     interaction_only=False, so both powers (age**2) and interactions
+     (bmi * smoker_yes) are generated. The interactions are the point.
+  3. Scale again: a squared term has a different spread from a linear one,
+     and Lasso applies the same lambda to every coefficient.
+
+Degrees 1, 2, 3 evaluated on the SAME folds as section 2:
+
+  degree  n_features  rmse_train  rmse_val     gap
+       1           8     6075.92   6123.65   47.73
+       2          44     4748.62   4931.59  182.98
+       3         164     4514.11   5169.48  655.37
+
+  - Degree 2 cuts the error by ~20%. The expansion creates terms such as
+    bmi x smoker_yes, and that interaction is real: a high BMI raises costs
+    far more for smokers than for non-smokers. An additive model cannot
+    express this at all.
+  - Degree 3 makes validation error WORSE while training error keeps
+    falling, and the gap grows from 183 to 655. Textbook overfitting: 164
+    features fitted on ~855 rows start memorising noise.
+
+3.3 L1 REGULARISATION (Lasso; sklearn 'alpha' = lambda)
+--------------------------------------------------------------------------------
+  degree  lambda   rmse_train  rmse_val     gap
+       1     1.0      6075.92   6123.55   47.64
+       1    10.0      6076.04   6122.79   46.75
+       1   100.0      6084.45   6121.41   36.96
+       1  1000.0      6352.08   6377.58   25.50
+       2     1.0      4748.64   4930.84  182.20
+       2    10.0      4750.64   4924.44  173.81
+       2   100.0      4797.06   4905.32  108.26   <- best
+       2  1000.0      5271.72   5296.59   24.87
+       3     1.0      4514.27   5159.44  645.17
+       3    10.0      4525.67   5090.97  565.30
+       3   100.0      4702.38   4918.71  216.33
+       3  1000.0      5270.59   5296.94   26.35
+
+  - L1 partly rescues degree 3: lambda = 100 brings it from 5169 down to
+    4919, close to degree 2. That is what regularisation is for.
+  - At lambda = 1000 every configuration converges to ~5300: the penalty is
+    now so strong that it dominates the data. Note the gap collapses to ~25
+    at the same time - low variance, but bought with high bias.
+  - At the chosen setting L1 sets 24 of 44 coefficients to exactly zero.
+    This is the practical advantage of L1 over L2: real feature selection,
+    not just shrinkage.
+
+
+================================================================================
+4. EVALUATION - validation RMSE by degree and lambda
+================================================================================
+
+  model  degree  lambda  n_features  rmse_train  rmse_val     gap
+    OLS       1       -           8     6075.92   6123.65   47.73
+    OLS       2       -          44     4748.62   4931.59  182.98
+    OLS       3       -         164     4514.11   5169.48  655.37
+  Lasso       1     1.0           8     6075.92   6123.55   47.64
+  Lasso       1    10.0           8     6076.04   6122.79   46.75
+  Lasso       1   100.0           8     6084.45   6121.41   36.96
+  Lasso       1  1000.0           8     6352.08   6377.58   25.50
+  Lasso       2     1.0          44     4748.64   4930.84  182.20
+  Lasso       2    10.0          44     4750.64   4924.44  173.81
+  Lasso       2   100.0          44     4797.06   4905.32  108.26  <- lowest
+  Lasso       2  1000.0          44     5271.72   5296.59   24.87
+  Lasso       3     1.0         164     4514.27   5159.44  645.17
+  Lasso       3    10.0         164     4525.67   5090.97  565.30
+  Lasso       3   100.0         164     4702.38   4918.71  216.33
+  Lasso       3  1000.0         164     5270.59   5296.94   26.35
+
+SELECTED: Lasso, degree 2, lambda = 100. Validation RMSE 4905.32.
+All 16 configurations use the identical split and identical folds, so any
+difference comes from the model and not from a different partition.
+
+
+================================================================================
+5. MODEL COMPARISON AND FINAL TEST
+================================================================================
+
+FINAL EVALUATION - performed once, on the 268 rows held out since 2.1
+--------------------------------------------------------------------------------
+The selected model was refitted on all 1069 training rows, then evaluated
+once. Nothing below was allowed to change the selection.
+
+  Test RMSE  4630.51    95% bootstrap interval [3820, 5403]
+  Test MAE   2878.83
+  Test R2       0.883
+
+  Cross-validated RMSE was 4905.32, so the test error is 275 LOWER.
+  This is not evidence that the model is better than expected. Two causes:
+  the final model was refitted on 1069 rows instead of ~855 per fold, and
+  268 rows is a small sample. The bootstrap interval [3820, 5403] contains
+  4905, so the two numbers do not contradict each other - the difference is
+  noise.
+
+RESIDUALS BY SUBGROUP
+--------------------------------------------------------------------------------
+  group          n   mean_actual     rmse   mean_error
+  non-smoker   208       8202.99  3978.36      -355.16
+  smoker        60      35311.26  6395.67      1296.55
+
+  Error is 60% higher for smokers. A single average RMSE hides this.
+  The model over-predicts on 79% of rows but has rare large
+  under-predictions (largest: 22575). This follows from the right-skewed
+  target: RMSE punishes large errors quadratically, so the model shifts
+  predictions slightly upward to hedge against the expensive tail. It is
+  also why MAE (2879) is so much lower than RMSE (4631).
+
+Q1. WHICH MODEL OBTAINED THE LOWEST ERROR?
+--------------------------------------------------------------------------------
+  Lasso, degree 2, lambda = 100. Cross-validated RMSE 4905.32.
+
+  Ranking:  Lasso d2 l100  4905.32
+            Lasso d3 l100  4918.71
+            OLS   d2       4931.59
+            OLS   d3       5169.48
+            OLS   d1       6123.65
+            baseline      11701.05
+
+  More important than the ranking: degree 1 -> 2 cut the error by ~20%
+  (interactions), while degree 2 -> 3 made it worse (overfitting).
+
+Q2. WHICH MODEL WOULD YOU DEPLOY?
+--------------------------------------------------------------------------------
+  Lasso, degree 2, lambda = 100 - but not on accuracy grounds.
+
+  Honest caveat: its lead over plain OLS degree 2 is 26 RMSE (4905 vs 4932)
+  while fold-to-fold sd is around 200. That difference is NOT statistically
+  meaningful; the two are equivalent in accuracy.
+
+  It is chosen on three other grounds:
+   - Stability: train/val gap 108 vs 183. It depends less on which
+     particular rows it was trained on.
+   - Simplicity: 24 of 44 coefficients are exactly zero, so roughly half the
+     features are actually used. Less to compute, less to maintain.
+   - Robustness of the choice: lambda from 1 to 100 all give ~4900, so
+     performance does not hinge on tuning lambda exactly right.
+
+Q3. WHAT RMSE WOULD YOU PROMISE ON NEW DATA?
+--------------------------------------------------------------------------------
+  About 4600 - stated as a range of roughly 3800 to 5400, not a single
+  figure. The test RMSE is itself an estimate from 268 rows and carries
+  sampling uncertainty; quoting "4630.51" would claim a precision the data
+  does not support.
+
+  Why NOT quote the validation number (4905.32):
+    It was used to CHOOSE degree and lambda. Sixteen configurations were
+    compared and the best kept. Taking the minimum of sixteen noisy
+    estimates biases that minimum downward - part of why it won is genuine
+    quality, part is that its folds happened to be favourable. The test set
+    was never involved in any of those decisions, so it is the only honest
+    estimate available.
+
+  Two conditions attached:
+   - It assumes new data resembles this data: US insurance, ages 18-64,
+     same cost structure. It does not transfer to another country, year or
+     insurer.
+   - The error is not evenly distributed. RMSE is ~3978 for non-smokers and
+     ~6396 for smokers. A real deployment should quote both, not the
+     average.
+
+--------------------------------------------------------------------------------
+The test set has now been used. Using it again to compare further models
+would invalidate this estimate.
+================================================================================
