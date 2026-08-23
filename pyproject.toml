@@ -1,0 +1,10 @@
+[project]
+name = "tp1-aprendizaje-automatico"
+version = "0.1.0"
+description = "TP1 - 72.75 Aprendizaje Automatico: regresion lineal y polinomica sobre insurance.csv"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=2.1",
+    "pandas>=2.2",
+    "scikit-learn>=1.5",
+]
