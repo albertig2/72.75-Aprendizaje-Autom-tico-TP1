@@ -1,19 +1,19 @@
 # 72.75 - Aprendizaje Automático - TP1
 
-Regresión lineal y polinómica sobre `insurance.csv`.
+Linear and polynomial regression on `insurance.csv`.
 
 ## Setup
 
-Requiere [uv](https://docs.astral.sh/uv/). Python 3.14 (ver `.python-version`) lo
-instala uv automáticamente si falta.
+Requires [uv](https://docs.astral.sh/uv/). Python 3.14 (see `.python-version`) is
+installed automatically by uv if missing.
 
 ```sh
 uv sync
 ```
 
-Esto crea `.venv/` con las dependencias fijadas en `uv.lock`.
+This creates `.venv/` with the dependencies pinned in `uv.lock`.
 
-## Uso
+## Usage
 
 ```sh
 uv run python data_prep.py
@@ -22,10 +22,10 @@ uv run python polynomial_regression.py
 uv run python final_evaluation.py
 ```
 
-`uv run` usa el entorno del proyecto sin necesidad de activarlo. Si preferís
-activarlo: `source .venv/bin/activate`.
+`uv run` uses the project environment without activating it. If you prefer to
+activate it: `source .venv/bin/activate`.
 
-## Dependencias
+## Dependencies
 
-Se declaran en `pyproject.toml`: `numpy`, `pandas`, `scikit-learn`.
-Para agregar una: `uv add <paquete>` (actualiza `pyproject.toml` y `uv.lock`).
+Declared in `pyproject.toml`: `numpy`, `pandas`, `scikit-learn`.
+To add one: `uv add <package>` (updates both `pyproject.toml` and `uv.lock`).
