@@ -1,7 +1,9 @@
 import matplotlib.pyplot as plt
-from data_preparation import prepare_data_set
 
-data_set = prepare_data_set()
+
+def clean_data_set(df):
+    return drop_row_of_missing_value(df)
+
 
 def evaluate_data(data_set):
     # Report missing values

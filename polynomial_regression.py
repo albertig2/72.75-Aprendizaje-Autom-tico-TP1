@@ -16,11 +16,11 @@ def cross_validation_polynomial_regression(x_train_full, y_train_full, degree, k
         y_val = y_train_full.iloc[val_idx]
         
         # Train model
-        model = polynomial_regression_model(2, x_train, y_train)
-        
+        model, poly = polynomial_regression_model(degree, x_train, y_train)
+
         # Evaluate on validation fold
         print(f"\nFold {fold + 1}:")
-        rmse += evaluate_model(model, degree,x_val, y_val) / k
+        rmse += evaluate_model(model, poly, x_val, y_val) / k
     print(f"\nAverage RMSE across {k} folds: {rmse}")
 
 def polynomial_regression_model(degree, x_train, y_train):
@@ -28,11 +28,10 @@ def polynomial_regression_model(degree, x_train, y_train):
     x_train_poly = poly.fit_transform(x_train)
     model = LinearRegression()
     model.fit(x_train_poly, y_train)
-    return model
+    return model, poly
 
-def evaluate_model(model, degree, x_test, y_test):
-    poly = PolynomialFeatures(degree=degree)
-    x_test_poly = poly.transform(x_test)  
+def evaluate_model(model, poly, x_test, y_test):
+    x_test_poly = poly.transform(x_test)
     y_pred = model.predict(x_test_poly)
     # Calculate the mean squared error
     mse = mean_squared_error(y_test, y_pred)

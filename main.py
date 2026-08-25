@@ -8,7 +8,7 @@ from polynomial_regression import cross_validation_polynomial_regression
 data_set = load_data_set()
 data_set = clean_data_set(data_set)
 data_set = prepare_data_set(data_set)
-data_set = select_features(data_set, features)  # Select features based on correlation and domain knowledge
+data_set = select_features(data_set)  # Select features based on correlation and domain knowledge
 
 train = data_set.sample(frac=0.8, random_state=42)
 test = data_set.drop(train.index)

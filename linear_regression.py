@@ -35,6 +35,4 @@ def evaluate_model(model, x_test, y_test):
     print(f"Mean Squared Error: {mse}")
     rmse = np.sqrt(mse)
     print(f"Root Mean Squared Error: {rmse}")
-    return
-
-    
+    return rmse
