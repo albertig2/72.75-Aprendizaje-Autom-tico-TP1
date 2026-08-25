@@ -123,6 +123,7 @@ df_normalizado_z_score = normalize_z_score(encoded_df) # Menos sensible a outlie
 
 print(df_normalizado_mm_scale.head())
 
+data_set = df_normalizado_z_score.drop(columns=['region_northwest', 'region_southeast', 'region_southwest', 'region_northeast', 'sex_male', 'sex_female'])
 # 1.4 Características
 # Pearson
 def pearson_correlation(df, col1, col2):
@@ -246,6 +247,7 @@ df_normalizado = normalize_z_score(encoded_df)
 train = df_normalizado.sample(frac=0.8, random_state=42)
 test = df_normalizado.drop(train.index)
 
+#Should drop the features we dont care about here 
 train_x = train.drop("charges", axis=1)
 train_y = train["charges"]
 test_x = test.drop("charges", axis=1)
@@ -264,5 +266,6 @@ print(f"Root Mean Squared Error: {rmse}")
 #e = y_pred - test_y
 
 # Regression polynomial:
+
 
 
