@@ -4,7 +4,7 @@ from sklearn.model_selection import KFold
 from sklearn.metrics import mean_squared_error
 import numpy as np
 
-def cross_validation_polynomial_regression(x_train_full, y_train_full, degree, k=5):
+def cross_validation_regression(x_train_full, y_train_full, degree, k=5):
     kf = KFold(n_splits=k, shuffle=True, random_state=42)
     
     rmse = 0
@@ -22,6 +22,7 @@ def cross_validation_polynomial_regression(x_train_full, y_train_full, degree, k
         print(f"\nFold {fold + 1}:")
         rmse += evaluate_model(model, poly, x_val, y_val) / k
     print(f"\nAverage RMSE across {k} folds: {rmse}")
+    return model, poly
 
 def polynomial_regression_model(degree, x_train, y_train):
     poly = PolynomialFeatures(degree=degree)
@@ -35,7 +36,6 @@ def evaluate_model(model, poly, x_test, y_test):
     y_pred = model.predict(x_test_poly)
     # Calculate the mean squared error
     mse = mean_squared_error(y_test, y_pred)
-    print(f"Mean Squared Error: {mse}")
     rmse = np.sqrt(mse)
     print(f"Root Mean Squared Error: {rmse}")
     return rmse
