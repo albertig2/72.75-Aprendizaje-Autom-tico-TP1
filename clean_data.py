@@ -87,12 +87,12 @@ def plot_histograms(df):
 # If wanting to remove data:
 
 def drop_row_of_missing_value(df):
-    df_clean = df.dropna()
+    df_clean = df.dropna() # df.dropna() removes any row with a missing value (default axis = 0 => drop row)
     return df_clean
 
 def drop_column_of_missing_value(df):
-    df_clean = df.dropna(axis=1)
+    df_clean = df.dropna(axis=1) # axis = 1 => removes column instead. We don't use this, maybe remove?
     return df_clean
 
 def save_cleaned_data(df_clean, output_path):
-    df_clean.to_csv(output_path, index=False)
+    df_clean.to_csv(output_path, index=False) # also not used
