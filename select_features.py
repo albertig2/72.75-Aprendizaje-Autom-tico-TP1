@@ -1,8 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 
 
-def select_features(df): # Need to fix to remove correct features
+def select_features(df, features): # Need to fix to remove correct features
     # Selecting features based on correlation and domain knowledge
     selected_features = ['age', 'bmi', 'smoker_yes']
     return df[selected_features]
