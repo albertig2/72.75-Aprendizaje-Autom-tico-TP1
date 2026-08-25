@@ -6,6 +6,8 @@ from sklearn.preprocessing import OneHotEncoder
 import numpy as np
 import seaborn as sns
 from sklearn.feature_selection import mutual_info_regression, f_regression
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error
 
 
 csv_path = Path(__file__).parent / 'data' / 'insurance.csv'
@@ -231,4 +233,36 @@ print(results)
 
 
 
+
+
+
+
 # METRICAS para medir
+
+# REgression linear: 
+# Validacion cruzada: K-fold cross-validation
+
+df_normalizado = normalize_z_score(encoded_df)
+train = df_normalizado.sample(frac=0.8, random_state=42)
+test = df_normalizado.drop(train.index)
+
+train_x = train.drop("charges", axis=1)
+train_y = train["charges"]
+test_x = test.drop("charges", axis=1)
+test_y = test["charges"]
+
+model = LinearRegression()
+model.fit(train_x, train_y)
+y_pred = model.predict(test_x)
+
+# Calculate the mean squared error
+mse = mean_squared_error(test_y, y_pred)
+print(f"Mean Squared Error: {mse}")
+rmse = np.sqrt(mse)
+print(f"Root Mean Squared Error: {rmse}")
+
+#e = y_pred - test_y
+
+# Regression polynomial:
+
+
