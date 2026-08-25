@@ -8,7 +8,7 @@ data_raw = load_data_set()
 data_cleaned = clean_data_set(data_raw)
 data_prepared = prepare_data_set(data_cleaned)
 data_set = data_prepared
-data_set = select_features(data_set, 'all')  # Select features based on correlation and domain knowledge
+data_set = select_features(data_set, 'all')
 
 train = data_set.sample(frac=0.8, random_state=42)
 test = data_set.drop(train.index)
